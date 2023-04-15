@@ -1,5 +1,7 @@
 package com.ismailcet.CafeManagement.service;
 
+import com.ismailcet.CafeManagement.JWT.CustomerUsersDetailsService;
+import com.ismailcet.CafeManagement.JWT.JwtUtil;
 import com.ismailcet.CafeManagement.constents.CafeConstants;
 import com.ismailcet.CafeManagement.entity.User;
 import com.ismailcet.CafeManagement.repository.UserRepository;
@@ -7,6 +9,9 @@ import com.ismailcet.CafeManagement.utils.CafeUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -17,9 +22,16 @@ import java.util.Objects;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final AuthenticationManager authenticationManager;
+    private final CustomerUsersDetailsService customerUsersDetailsService;
 
-    public UserService(UserRepository userRepository) {
+    private final JwtUtil jwtUtil;
+
+    public UserService(UserRepository userRepository, AuthenticationManager authenticationManager, CustomerUsersDetailsService customerUsersDetailsService, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
+        this.authenticationManager = authenticationManager;
+        this.customerUsersDetailsService = customerUsersDetailsService;
+        this.jwtUtil = jwtUtil;
     }
 
     public ResponseEntity<String> signUp(Map<String, String> requestMap){
@@ -63,5 +75,33 @@ public class UserService {
         user.setRole("user");
 
         return user;
+    }
+
+
+    public ResponseEntity<String> login(Map<String, String> requestMap){
+        log.info("Inside login");
+        try{
+            Authentication auth = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(requestMap.get("email"),requestMap.get("password"))
+            );
+            if(auth.isAuthenticated()){
+                if(customerUsersDetailsService.getUserDetail().getStatus().equalsIgnoreCase("true")){
+                    return new ResponseEntity<String>("{\"token\":\""+
+                            jwtUtil
+                                    .generateToken(customerUsersDetailsService
+                                        .getUserDetail()
+                                        .getEmail(),customerUsersDetailsService
+                                                    .getUserDetail()
+                                                    .getRole())
+                            +"\"}",HttpStatus.OK);
+                }else{
+                    return new ResponseEntity<String>("{\"Message\":\""+"Wait for admin approval."+"\"}",HttpStatus.BAD_REQUEST);
+                }
+            }
+
+        }catch (Exception ex){
+            log.error("{}",ex);
+        }
+        return new ResponseEntity<String>("{\"Message\":\""+"Bad Credentials."+"\"}",HttpStatus.BAD_REQUEST);
     }
 }
