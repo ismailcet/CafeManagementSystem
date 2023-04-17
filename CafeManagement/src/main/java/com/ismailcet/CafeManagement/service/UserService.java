@@ -1,11 +1,13 @@
 package com.ismailcet.CafeManagement.service;
 
 import com.ismailcet.CafeManagement.JWT.CustomerUsersDetailsService;
+import com.ismailcet.CafeManagement.JWT.JwtFilter;
 import com.ismailcet.CafeManagement.JWT.JwtUtil;
 import com.ismailcet.CafeManagement.constents.CafeConstants;
 import com.ismailcet.CafeManagement.entity.User;
 import com.ismailcet.CafeManagement.repository.UserRepository;
 import com.ismailcet.CafeManagement.utils.CafeUtils;
+import com.ismailcet.CafeManagement.wrapper.UserWrapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,8 +16,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -27,11 +29,14 @@ public class UserService {
 
     private final JwtUtil jwtUtil;
 
-    public UserService(UserRepository userRepository, AuthenticationManager authenticationManager, CustomerUsersDetailsService customerUsersDetailsService, JwtUtil jwtUtil) {
+    private final JwtFilter jwtFilter;
+
+    public UserService(UserRepository userRepository, AuthenticationManager authenticationManager, CustomerUsersDetailsService customerUsersDetailsService, JwtUtil jwtUtil, JwtFilter jwtFilter) {
         this.userRepository = userRepository;
         this.authenticationManager = authenticationManager;
         this.customerUsersDetailsService = customerUsersDetailsService;
         this.jwtUtil = jwtUtil;
+        this.jwtFilter = jwtFilter;
     }
 
     public ResponseEntity<String> signUp(Map<String, String> requestMap){
@@ -77,7 +82,6 @@ public class UserService {
         return user;
     }
 
-
     public ResponseEntity<String> login(Map<String, String> requestMap){
         log.info("Inside login");
         try{
@@ -103,5 +107,50 @@ public class UserService {
             log.error("{}",ex);
         }
         return new ResponseEntity<String>("{\"Message\":\""+"Bad Credentials."+"\"}",HttpStatus.BAD_REQUEST);
+    }
+
+    public ResponseEntity<List<UserWrapper>> getAllUser(){
+        try{
+            if(jwtFilter.isAdmin()){
+                List<User> users = userRepository.findAll();
+                List<UserWrapper> converterUser = users.stream()
+                                                .map(user->new UserWrapper(
+                                                        user.getId(),
+                                                        user.getName(),
+                                                        user.getEmail(),
+                                                        user.getContactNumber(),
+                                                        user.getStatus()
+                                                ))
+                                                .collect(Collectors.toList());
+
+                return new ResponseEntity<>(converterUser,HttpStatus.OK);
+            }else{
+                return new ResponseEntity<>(new ArrayList<>(),HttpStatus.UNAUTHORIZED);
+            }
+        }catch (Exception ex){
+            ex.printStackTrace();
+        }
+        return new ResponseEntity<List<UserWrapper>>(new ArrayList<>(),HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    public ResponseEntity<String> update(Map<String, String> requestMap){
+        try{
+            if(jwtFilter.isAdmin()){
+                Optional<User> optional=
+                        userRepository.findById(Integer.parseInt(requestMap.get("id")));
+                if(optional.isPresent()){
+                    userRepository.updateStatus(requestMap.get("status"),Integer.parseInt(requestMap.get("id")));
+
+                    return CafeUtils.getResponseEntity("User status Updated Successfully",HttpStatus.OK);
+                }else{
+                    return CafeUtils.getResponseEntity("User id doesn not exist",HttpStatus.OK);
+                }
+            }else{
+                return CafeUtils.getResponseEntity(CafeConstants.UNAUTHORIZED,HttpStatus.UNAUTHORIZED);
+            }
+        }catch (Exception ex){
+            ex.printStackTrace();
+        }
+        return CafeUtils.getResponseEntity(CafeConstants.SOMETHING_WENT_WRONG,HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
