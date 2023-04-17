@@ -39,6 +39,7 @@ public class UserController {
             return userService.login(requestMap);
         }catch (Exception ex){
             ex.printStackTrace();
+
         }
         return CafeUtils.getResponseEntity(CafeConstants.SOMETHING_WENT_WRONG,HttpStatus.INTERNAL_SERVER_ERROR);
     }
