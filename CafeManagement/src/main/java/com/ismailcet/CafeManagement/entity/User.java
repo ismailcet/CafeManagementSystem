@@ -11,6 +11,7 @@ import java.io.Serializable;
 
 @NamedQuery(name="User.updateStatus",query = "update User u set u.status=:status where u.id=:id")
 
+
 @Data
 @Entity
 @DynamicUpdate

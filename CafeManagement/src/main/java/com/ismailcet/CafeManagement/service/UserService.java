@@ -7,6 +7,7 @@ import com.ismailcet.CafeManagement.constents.CafeConstants;
 import com.ismailcet.CafeManagement.entity.User;
 import com.ismailcet.CafeManagement.repository.UserRepository;
 import com.ismailcet.CafeManagement.utils.CafeUtils;
+import com.ismailcet.CafeManagement.utils.EmailUtils;
 import com.ismailcet.CafeManagement.wrapper.UserWrapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -31,12 +32,15 @@ public class UserService {
 
     private final JwtFilter jwtFilter;
 
-    public UserService(UserRepository userRepository, AuthenticationManager authenticationManager, CustomerUsersDetailsService customerUsersDetailsService, JwtUtil jwtUtil, JwtFilter jwtFilter) {
+    private final EmailUtils emailUtils;
+
+    public UserService(UserRepository userRepository, AuthenticationManager authenticationManager, CustomerUsersDetailsService customerUsersDetailsService, JwtUtil jwtUtil, JwtFilter jwtFilter, EmailUtils emailUtils) {
         this.userRepository = userRepository;
         this.authenticationManager = authenticationManager;
         this.customerUsersDetailsService = customerUsersDetailsService;
         this.jwtUtil = jwtUtil;
         this.jwtFilter = jwtFilter;
+        this.emailUtils = emailUtils;
     }
 
     public ResponseEntity<String> signUp(Map<String, String> requestMap){
@@ -140,7 +144,7 @@ public class UserService {
                         userRepository.findById(Integer.parseInt(requestMap.get("id")));
                 if(optional.isPresent()){
                     userRepository.updateStatus(requestMap.get("status"),Integer.parseInt(requestMap.get("id")));
-
+                    sendMailToAllAdmin(requestMap.get("status"),optional.get().getEmail(),userRepository.getAllAdmin());
                     return CafeUtils.getResponseEntity("User status Updated Successfully",HttpStatus.OK);
                 }else{
                     return CafeUtils.getResponseEntity("User id doesn not exist",HttpStatus.OK);
@@ -152,5 +156,14 @@ public class UserService {
             ex.printStackTrace();
         }
         return CafeUtils.getResponseEntity(CafeConstants.SOMETHING_WENT_WRONG,HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    private void sendMailToAllAdmin(String status, String user, List<String> allAdmin) {
+        allAdmin.remove(jwtFilter.getCurrentUser());
+        if(status != null && status.equalsIgnoreCase("true")){
+            emailUtils.sendSimpleMessage(jwtFilter.getCurrentUser(),"Account Approved","USER:- "+user+"\n is approved by \nADMIN:-"+ jwtFilter.getCurrentUser(),allAdmin);
+        }else{
+            emailUtils.sendSimpleMessage(jwtFilter.getCurrentUser(),"Account Disable","USER:- "+user+"\n is disabled by \nADMIN:-"+ jwtFilter.getCurrentUser(),allAdmin);
+        }
     }
 }
