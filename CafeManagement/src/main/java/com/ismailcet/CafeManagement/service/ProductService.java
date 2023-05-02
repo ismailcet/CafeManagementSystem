@@ -6,11 +6,15 @@ import com.ismailcet.CafeManagement.entity.Category;
 import com.ismailcet.CafeManagement.entity.Product;
 import com.ismailcet.CafeManagement.repository.ProductRepository;
 import com.ismailcet.CafeManagement.utils.CafeUtils;
+import com.ismailcet.CafeManagement.wrapper.ProductWrapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class ProductService {
@@ -68,5 +72,27 @@ public class ProductService {
         product.setPrice(Integer.parseInt(requestMap.get("price")));
 
         return product;
+    }
+
+    public ResponseEntity<List<ProductWrapper>> getAllProduct() {
+        try{
+            List <Product> products =
+                    productRepository.findAll();
+             List<ProductWrapper> productWrappers =
+                     products.stream().map(product->new ProductWrapper(
+                             product.getId(),
+                             product.getName(),
+                             product.getDescription(),
+                             product.getPrice(),
+                             product.getStatus(),
+                             product.getCategory().getId(),
+                             product.getCategory().getName()
+                     )).collect(Collectors.toList());
+
+            return new ResponseEntity<>(productWrappers,HttpStatus.OK);
+        }catch (Exception ex){
+            ex.printStackTrace();
+        }
+        return new ResponseEntity<>(new ArrayList<>(),HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
