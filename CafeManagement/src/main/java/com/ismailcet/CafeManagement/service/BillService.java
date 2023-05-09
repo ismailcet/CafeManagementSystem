@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -231,6 +232,20 @@ public class BillService {
         byte[] byteArray = IOUtils.toByteArray(targetStream);
         targetStream.close();
         return byteArray;
+    }
+
+    public ResponseEntity<String> deleteBill(Integer id) {
+        try{
+            Optional optional = billRepository.findById(id);
+            if(optional.isPresent()){
+                billRepository.deleteById(id);
+                return CafeUtils.getResponseEntity("Bill deleted Successfully",HttpStatus.OK);
+            }
+            return CafeUtils.getResponseEntity("Bill id does not exist",HttpStatus.OK);
+        }catch (Exception ex){
+            ex.printStackTrace();
+        }
+        return CafeUtils.getResponseEntity(CafeConstants.SOMETHING_WENT_WRONG,HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
 
